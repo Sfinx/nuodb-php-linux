@@ -1,0 +1,21 @@
+
+v0.1 (19/09/2012)
+=================
+
+Implemented:
+
+ nuodb_error
+ nuodb_connect
+ nuodb_autocommit
+ nuodb_disconnect
+ nuodb_query
+ nuodb_free_result
+ nuodb_fetch_row
+ nuodb_fetch_array
+ nuodb_fetch_assoc
+ nuodb_fetch_object
+ nuodb_insert_id
+ nuodb_affected_rows
+ nuodb_insert_with_blob
+ nuodb_insert_with_clob
+

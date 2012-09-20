@@ -1,0 +1,6 @@
+
+ - nuodb_num_rows() [ no API call exits yet ]
+ - implement new connection/transaction for every query
+	[ overcome libNuoRemote bad design ]
+ - tests
+ - docs

@@ -1,0 +1,107 @@
+#!/usr/bin/php
+<?php
+
+function cout($msg)
+{
+ echo $msg."\n";
+}
+
+function fatal($msg)
+{
+ cout($msg);
+ exit(-1);
+}
+
+$module = 'nuodb';
+$library_name = 'php_'.$module;
+
+if (!extension_loaded($library_name)) {
+  dl($module.'.'.PHP_SHLIB_SUFFIX);
+   if (!extension_loaded($library_name))
+     fatal("\nCan't load NuoDB extension ".$module." !");
+   else
+     cout("\nNuoDB extension loaded Ok");
+}
+
+$functions = get_extension_funcs($library_name);
+cout("\nFunctions available in the NuoDB extension:\n");
+foreach($functions as $func) {
+    cout($func);
+}
+
+$nuodb_conn = nuodb_connect("nuodb@email", "ssp_user", "ssp_pass", "ssp");
+if (!$nuodb_conn)
+  fatal("Connect Error: ".nuodb_error());
+
+cout("\nConnected Ok");
+$query = "drop table if exists slices";
+$result = nuodb_query($query);
+if (!$result)
+  fatal("Drop Error: ".nuodb_error());
+
+// create table with BLOB
+$query = "create table slices (id integer GENERATED ALWAYS AS IDENTITY,
+		some_clob clob, some_blob blob, some_null_blob blob, some_text string, PRIMARY KEY (id))";
+$result = nuodb_query($query);
+if (!$result)
+  fatal("Create Error: ".nuodb_error());
+else
+  cout("\nCreated Ok");
+$ut8str = 'фывапрой';
+$ut8str_md5 = md5($ut8str);
+$ut8str_len = strlen($ut8str);
+cout('Text len - '.strlen($ut8str).', md5 - '.$ut8str_md5);
+$fname = "/blob";
+//$fname = "/boot/vmlinuz";
+$was = microtime(1);
+$fp = fopen($fname, "r");
+if (!$fp)
+  fatal("file open error !");
+$fsize = filesize($fname);
+$att = fread($fp, $fsize);
+if (!$att)
+  fatal("file read error !");
+$itime = (microtime(1) - $was);
+$ispeed = ($fsize / $itime) / (1024*1024);
+cout('Read speed - '.number_format($ispeed, 2).' Mb/sec, time is - '.$itime);
+$file_md5 = md5($att);
+cout('File - '.$fname.', len - '.$fsize.', hash - '.$file_md5);
+$was = microtime(1);
+$query = "insert into slices (some_blob, some_text) values (?, '$ut8str')";
+$result = nuodb_insert_with_blob($query, $att);
+if (!$result)
+  fatal("Insert Error: ".nuodb_error());
+else
+  cout("\nInserted ok, id - ".nuodb_insert_id());
+
+$itime = (microtime(1) - $was);
+$ispeed = ($fsize / $itime) / (1024*1024);
+cout('Insert speed - '.number_format($ispeed, 2).' Mb/sec, time is - '.$itime);
+
+$query = "select * from slices";
+
+for ($i = 0; $i < 5; $i++) {
+ $was = microtime(1);
+ $result = nuodb_query($query);
+ if (!$result)
+   fatal("$i:Select Error: ".nuodb_error());
+ $row = nuodb_fetch_array($result);
+ $itime = (microtime(1) - $was);
+ $ispeed = ($fsize / $itime) / (1024*1024);
+ cout("$i:Select speed - ".number_format($ispeed, 2).' Mb/sec, time is - '.$itime);
+ if ((strlen($row['some_text']) != $ut8str_len) || (md5($row['some_text']) != $ut8str_md5))
+   cout('Bad Text len - '.strlen($row['some_text']).', or md5 '.md5($row['some_text']));
+ if ((strlen($row['some_blob']) != $fsize) || (md5($row['some_blob']) != $file_md5)) 
+   cout('Bad Text len - '.strlen($row['some_text']).', or md5 '.md5($row['some_text']));
+ nuodb_free_result($result);
+}
+
+$query = "drop table if exists slices";
+$result = nuodb_query($query);
+if (!$result)
+  fatal("Drop Error: ".nuodb_error());
+
+nuodb_disconnect($nuodb_conn);
+cout("\nDisconnected Ok");
+
+?>
